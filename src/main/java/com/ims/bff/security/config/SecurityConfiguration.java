@@ -13,6 +13,7 @@ import org.springframework.security.web.SecurityFilterChain;
 
 import com.ims.bff.auth.AuthConstants;
 import com.ims.bff.auth.handler.OAuth2AuthenticationSuccessHandler;
+import com.ims.bff.registration.RegistrationConstants;
 
 @Configuration
 public class SecurityConfiguration {
@@ -32,6 +33,7 @@ public class SecurityConfiguration {
                         .requestMatchers(HttpMethod.POST, AuthConstants.AUTH_BASIC_LOGIN_PATH).permitAll()
                         .requestMatchers(HttpMethod.GET, AuthConstants.AUTH_API_BASE_PATH + "/login/**").permitAll()
                         .requestMatchers(HttpMethod.GET, AuthConstants.AUTH_USER_PATH).permitAll() // Temporary for debugging
+                        .requestMatchers(HttpMethod.POST, RegistrationConstants.ORGANIZATION_REGISTRATION_PATH).permitAll()
                         .anyRequest().authenticated())
                 .httpBasic(withDefaults())
                 .formLogin(withDefaults());

@@ -1,0 +1,154 @@
+Project ims_subscription_model {
+  database_type: "PostgreSQL"
+  Note: "Subscription schema for organization onboarding, plan entitlements, and future coupon support."
+}
+
+Enum organization_status {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+Enum domain_status {
+  ACTIVE
+  INACTIVE
+}
+
+Enum subscription_status {
+  PENDING
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  SUSPENDED
+}
+
+Enum billing_period {
+  MONTHLY
+  YEARLY
+}
+
+Enum discount_type {
+  PERCENTAGE
+  FIXED
+}
+
+Table organization {
+  organization_id bigint [pk, increment]
+  organization_code varchar(64) [not null, unique, note: "Stable business key, e.g. ORG_ABC123"]
+  organization_name varchar(255) [not null]
+  status organization_status [not null, default: 'ACTIVE']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table organization_domain {
+  organization_domain_id bigint [pk, increment]
+  organization_id bigint [not null]
+  domain_name varchar(320) [not null, unique, note: "Globally unique domain ownership"]
+  is_primary boolean [not null, default: false]
+  is_verified boolean [not null, default: false]
+  status domain_status [not null, default: 'ACTIVE']
+  created_at timestamp [not null]
+  verified_at timestamp
+
+  indexes {
+    (organization_id, is_primary)
+  }
+}
+
+Table feature {
+  feature_id bigint [pk, increment]
+  feature_key varchar(80) [not null, unique, note: "Stable code, e.g. USER_MANAGEMENT"]
+  feature_name varchar(120) [not null]
+  description varchar(500)
+  is_active boolean [not null, default: true]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table plan {
+  plan_id bigint [pk, increment]
+  plan_code varchar(40) [not null, unique, note: "BASIC, PREMIUM, ADVANCED"]
+  plan_name varchar(120) [not null]
+  billing_period billing_period [not null, default: 'MONTHLY']
+  base_price decimal(12,2) [not null]
+  currency_code char(3) [not null, default: 'USD']
+  is_active boolean [not null, default: true]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table plan_feature {
+  plan_feature_id bigint [pk, increment]
+  plan_id bigint [not null]
+  feature_id bigint [not null]
+  created_at timestamp [not null]
+
+  indexes {
+    (plan_id, feature_id) [unique]
+  }
+}
+
+Table subscription {
+  subscription_id bigint [pk, increment]
+  organization_id bigint [not null]
+  plan_id bigint [not null]
+  start_at timestamp [not null]
+  end_at timestamp
+  status subscription_status [not null, default: 'PENDING']
+  auto_renew boolean [not null, default: true]
+  cancelled_at timestamp
+  termination_reason varchar(255)
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    (organization_id, status, start_at, end_at)
+  }
+}
+
+Table coupon {
+  coupon_id bigint [pk, increment]
+  coupon_code varchar(64) [not null, unique]
+  discount_type discount_type [not null]
+  discount_value decimal(12,2) [not null, note: "Percent or fixed amount based on discount_type"]
+  valid_from timestamp [not null]
+  valid_to timestamp
+  max_redemptions int
+  is_active boolean [not null, default: true]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table coupon_plan {
+  coupon_plan_id bigint [pk, increment]
+  coupon_id bigint [not null]
+  plan_id bigint [not null]
+  created_at timestamp [not null]
+
+  indexes {
+    (coupon_id, plan_id) [unique]
+  }
+}
+
+Table subscription_coupon {
+  subscription_coupon_id bigint [pk, increment]
+  subscription_id bigint [not null]
+  coupon_id bigint [not null]
+  applied_discount_value decimal(12,2) [not null]
+  applied_at timestamp [not null]
+
+  indexes {
+    (subscription_id, coupon_id) [unique]
+  }
+}
+
+Ref: organization_domain.organization_id > organization.organization_id
+Ref: plan_feature.plan_id > plan.plan_id
+Ref: plan_feature.feature_id > feature.feature_id
+Ref: subscription.organization_id > organization.organization_id
+Ref: subscription.plan_id > plan.plan_id
+Ref: coupon_plan.coupon_id > coupon.coupon_id
+Ref: coupon_plan.plan_id > plan.plan_id
+Ref: subscription_coupon.subscription_id > subscription.subscription_id
+Ref: subscription_coupon.coupon_id > coupon.coupon_id
