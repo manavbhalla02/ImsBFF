@@ -1,6 +1,33 @@
 Project ims_subscription_model {
   database_type: "PostgreSQL"
-  Note: "Subscription schema for organization onboarding, plan entitlements, and future coupon support."
+  Note: '''
+Hybrid design:
+1. PostgreSQL stores organization, subscription, plan, feature catalog, plan entitlements, feature restrictions, and organization feature selections.
+2. MongoDB stores feature adjacency graph only.
+
+Feature catalog examples:
+- 1 -> TKT_PAGE
+- 2 -> COMMENT_SECTION
+- 3 -> SUBJECT
+- 4 -> DESCRIPTION
+- 5 -> AUTO_TKT_RESOLUTION
+- 6 -> COMMENT_RES
+- 7 -> AI_SUBJECT_SUMMARY
+- 8 -> AUTH
+- 9 -> AUTH_TYPE_OAUTH
+- 10 -> AUTH_PROVIDER_GOOGLE
+
+MongoDB adjacency examples:
+- 1 -> [2,3,4,5,7]
+- 2 -> [6]
+- 8 -> [9]
+- 9 -> [10]
+
+Restriction examples:
+- BASIC + COMMENT_SECTION => MAX_COMMENTS LTE 200 COUNT
+- BASIC + AUTH => MAX_AUTH_TYPES LTE 1 COUNT
+- BASIC + AUTH_TYPE_OAUTH => MAX_PROVIDERS LTE 1 COUNT
+'''
 }
 
 Enum organization_status {
@@ -32,6 +59,37 @@ Enum discount_type {
   FIXED
 }
 
+Enum organization_feature_selection_status {
+  ACTIVE
+  INACTIVE
+}
+
+Enum restriction_type {
+  BOOLEAN
+  NUMERIC
+  TEXT
+  DURATION
+}
+
+Enum restriction_operator {
+  EQ
+  NE
+  LT
+  LTE
+  GT
+  GTE
+  IN
+}
+
+Enum restriction_unit {
+  COUNT
+  DAY
+  MINUTE
+  FLAG
+  CHARACTER
+  PERCENT
+}
+
 Table organization {
   organization_id bigint [pk, increment]
   organization_code varchar(64) [not null, unique, note: "Stable business key, e.g. ORG_ABC123"]
@@ -58,7 +116,7 @@ Table organization_domain {
 
 Table feature {
   feature_id bigint [pk, increment]
-  feature_key varchar(80) [not null, unique, note: "Stable code, e.g. USER_MANAGEMENT"]
+  feature_key varchar(80) [not null, unique, note: "Examples: TKT_PAGE, COMMENT_SECTION, AUTH, AUTH_TYPE_OAUTH, AUTH_PROVIDER_GOOGLE"]
   feature_name varchar(120) [not null]
   description varchar(500)
   is_active boolean [not null, default: true]
@@ -86,6 +144,35 @@ Table plan_feature {
 
   indexes {
     (plan_id, feature_id) [unique]
+  }
+}
+
+Table plan_feature_restriction {
+  plan_feature_restriction_id bigint [pk, increment]
+  plan_feature_id bigint [not null]
+  restriction_key varchar(80) [not null, note: "Examples: MAX_COMMENTS, VIEW_ACCESS, MAX_AUTH_TYPES, MAX_PROVIDERS"]
+  restriction_type restriction_type [not null]
+  operator restriction_operator [not null]
+  restriction_value varchar(255) [not null, note: "Stored as text so boolean, numeric, and text restrictions share one model"]
+  restriction_unit restriction_unit
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    (plan_feature_id, restriction_key) [unique]
+  }
+}
+
+Table organization_feature_selection {
+  organization_feature_selection_id bigint [pk, increment]
+  organization_id bigint [not null]
+  feature_id bigint [not null, note: "Selected feature for current organization setup, e.g. AUTH_TYPE_OAUTH or AUTH_PROVIDER_GOOGLE"]
+  status organization_feature_selection_status [not null, default: 'ACTIVE']
+  selected_at timestamp [not null]
+
+  indexes {
+    (organization_id, feature_id) [unique]
+    (organization_id, status)
   }
 }
 
@@ -146,6 +233,9 @@ Table subscription_coupon {
 Ref: organization_domain.organization_id > organization.organization_id
 Ref: plan_feature.plan_id > plan.plan_id
 Ref: plan_feature.feature_id > feature.feature_id
+Ref: plan_feature_restriction.plan_feature_id > plan_feature.plan_feature_id
+Ref: organization_feature_selection.organization_id > organization.organization_id
+Ref: organization_feature_selection.feature_id > feature.feature_id
 Ref: subscription.organization_id > organization.organization_id
 Ref: subscription.plan_id > plan.plan_id
 Ref: coupon_plan.coupon_id > coupon.coupon_id
