@@ -1,0 +1,8 @@
+{
+  "steps": [
+    "ORGANIZATION",
+    "ORGANIZATION_DOMAIN",
+    "SUBSCRIPTION",
+    "ORGANIZATION_FEATURE_SELECTION"
+  ]
+}

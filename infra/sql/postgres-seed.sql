@@ -4,8 +4,9 @@
 -- This script seeds:
 -- 1. plan records
 -- 2. feature catalog records
--- 3. plan_feature mappings
--- 4. plan_feature_restriction rules
+-- 3. plan_feature grants
+-- 4. plan_feature_selection_rule rows
+-- 5. plan_feature_restriction rules
 --
 -- It intentionally uses stable keys and ON CONFLICT handling
 -- so the script can be rerun safely.
@@ -51,65 +52,100 @@ SET
     is_active = EXCLUDED.is_active,
     updated_at = CURRENT_TIMESTAMP;
 
-WITH plan_feature_seed(plan_code, feature_key) AS (
+WITH plan_feature_seed(plan_code, feature_key, grant_type) AS (
     VALUES
-        ('BASIC', 'TKT_PAGE'),
-        ('BASIC', 'COMMENT_SECTION'),
-        ('BASIC', 'SUBJECT'),
-        ('BASIC', 'DESCRIPTION'),
-        ('BASIC', 'AUTH'),
-        ('BASIC', 'AUTH_TYPE_BASIC'),
-        ('BASIC', 'AUTH_PROVIDER_BASIC'),
+        ('BASIC', 'TKT_PAGE', 'DIRECT'),
+        ('BASIC', 'COMMENT_SECTION', 'DIRECT'),
+        ('BASIC', 'SUBJECT', 'DIRECT'),
+        ('BASIC', 'DESCRIPTION', 'DIRECT'),
+        ('BASIC', 'AUTH', 'SELECTABLE'),
 
-        ('PREMIUM', 'TKT_PAGE'),
-        ('PREMIUM', 'COMMENT_SECTION'),
-        ('PREMIUM', 'SUBJECT'),
-        ('PREMIUM', 'DESCRIPTION'),
-        ('PREMIUM', 'AI_SUBJECT_SUMMARY'),
-        ('PREMIUM', 'AUTH'),
-        ('PREMIUM', 'AUTH_TYPE_BASIC'),
-        ('PREMIUM', 'AUTH_TYPE_OAUTH'),
-        ('PREMIUM', 'AUTH_PROVIDER_BASIC'),
-        ('PREMIUM', 'AUTH_PROVIDER_GOOGLE'),
-        ('PREMIUM', 'AUTH_PROVIDER_GITHUB'),
+        ('PREMIUM', 'TKT_PAGE', 'DIRECT'),
+        ('PREMIUM', 'COMMENT_SECTION', 'DIRECT'),
+        ('PREMIUM', 'SUBJECT', 'DIRECT'),
+        ('PREMIUM', 'DESCRIPTION', 'DIRECT'),
+        ('PREMIUM', 'AI_SUBJECT_SUMMARY', 'DIRECT'),
+        ('PREMIUM', 'AUTH', 'SELECTABLE'),
 
-        ('ADVANCED', 'TKT_PAGE'),
-        ('ADVANCED', 'COMMENT_SECTION'),
-        ('ADVANCED', 'SUBJECT'),
-        ('ADVANCED', 'DESCRIPTION'),
-        ('ADVANCED', 'AUTO_TKT_RESOLUTION'),
-        ('ADVANCED', 'COMMENT_RES'),
-        ('ADVANCED', 'AI_SUBJECT_SUMMARY'),
-        ('ADVANCED', 'AUTH'),
-        ('ADVANCED', 'AUTH_TYPE_BASIC'),
-        ('ADVANCED', 'AUTH_TYPE_OAUTH'),
-        ('ADVANCED', 'AUTH_TYPE_SSO'),
-        ('ADVANCED', 'AUTH_PROVIDER_BASIC'),
-        ('ADVANCED', 'AUTH_PROVIDER_GOOGLE'),
-        ('ADVANCED', 'AUTH_PROVIDER_GITHUB'),
-        ('ADVANCED', 'AUTH_PROVIDER_LINKEDIN'),
-        ('ADVANCED', 'AUTH_PROVIDER_OKTA')
+        ('ADVANCED', 'TKT_PAGE', 'DIRECT'),
+        ('ADVANCED', 'COMMENT_SECTION', 'DIRECT'),
+        ('ADVANCED', 'SUBJECT', 'DIRECT'),
+        ('ADVANCED', 'DESCRIPTION', 'DIRECT'),
+        ('ADVANCED', 'AUTO_TKT_RESOLUTION', 'DIRECT'),
+        ('ADVANCED', 'COMMENT_RES', 'DIRECT'),
+        ('ADVANCED', 'AI_SUBJECT_SUMMARY', 'DIRECT'),
+        ('ADVANCED', 'AUTH', 'SELECTABLE')
 )
-INSERT INTO plan_feature (plan_id, feature_id)
-SELECT p.plan_id, f.feature_id
+INSERT INTO plan_feature (plan_id, feature_id, grant_type)
+SELECT p.plan_id, f.feature_id, seed.grant_type::feature_grant_type
 FROM plan_feature_seed seed
 JOIN plan p ON p.plan_code = seed.plan_code
 JOIN feature f ON f.feature_key = seed.feature_key
-ON CONFLICT (plan_id, feature_id) DO NOTHING;
+ON CONFLICT (plan_id, feature_id) DO UPDATE
+SET grant_type = EXCLUDED.grant_type;
+
+WITH selection_rule_seed(plan_code, entitlement_feature_key, applies_to_feature_key, min_selectable, max_selectable, selection_required) AS (
+    VALUES
+        ('BASIC', 'AUTH', 'AUTH', 1, 1, TRUE),
+        ('BASIC', 'AUTH', 'AUTH_TYPE_BASIC', 1, 1, TRUE),
+        ('BASIC', 'AUTH', 'AUTH_TYPE_OAUTH', 1, 1, TRUE),
+        ('BASIC', 'AUTH', 'AUTH_TYPE_SSO', 1, 1, TRUE),
+
+        ('PREMIUM', 'AUTH', 'AUTH', 1, 2, TRUE),
+        ('PREMIUM', 'AUTH', 'AUTH_TYPE_BASIC', 1, 3, TRUE),
+        ('PREMIUM', 'AUTH', 'AUTH_TYPE_OAUTH', 1, 3, TRUE),
+        ('PREMIUM', 'AUTH', 'AUTH_TYPE_SSO', 1, 3, TRUE),
+
+        ('ADVANCED', 'AUTH', 'AUTH', 1, 3, TRUE),
+        ('ADVANCED', 'AUTH', 'AUTH_TYPE_BASIC', 1, 10, TRUE),
+        ('ADVANCED', 'AUTH', 'AUTH_TYPE_OAUTH', 1, 10, TRUE),
+        ('ADVANCED', 'AUTH', 'AUTH_TYPE_SSO', 1, 10, TRUE)
+),
+resolved_selection_rules AS (
+    SELECT
+        pf.plan_feature_id,
+        applies_to_feature.feature_id AS applies_to_feature_id,
+        seed.min_selectable,
+        seed.max_selectable,
+        seed.selection_required
+    FROM selection_rule_seed seed
+    JOIN plan p ON p.plan_code = seed.plan_code
+    JOIN feature entitlement_feature ON entitlement_feature.feature_key = seed.entitlement_feature_key
+    JOIN feature applies_to_feature ON applies_to_feature.feature_key = seed.applies_to_feature_key
+    JOIN plan_feature pf
+        ON pf.plan_id = p.plan_id
+       AND pf.feature_id = entitlement_feature.feature_id
+)
+INSERT INTO plan_feature_selection_rule (
+    plan_feature_id,
+    applies_to_feature_id,
+    selection_scope,
+    min_selectable,
+    max_selectable,
+    selection_required
+)
+SELECT
+    plan_feature_id,
+    applies_to_feature_id,
+    'DIRECT_CHILDREN'::selection_scope,
+    min_selectable,
+    max_selectable,
+    selection_required
+FROM resolved_selection_rules
+ON CONFLICT (plan_feature_id, applies_to_feature_id, selection_scope) DO UPDATE
+SET
+    min_selectable = EXCLUDED.min_selectable,
+    max_selectable = EXCLUDED.max_selectable,
+    selection_required = EXCLUDED.selection_required,
+    updated_at = CURRENT_TIMESTAMP;
 
 WITH restriction_seed(plan_code, feature_key, restriction_key, restriction_type, restriction_operator, restriction_value, restriction_unit) AS (
     VALUES
         ('BASIC', 'COMMENT_SECTION', 'MAX_COMMENTS', 'NUMERIC', 'LTE', '200', 'COUNT'),
-        ('BASIC', 'AUTH', 'MAX_AUTH_TYPES', 'NUMERIC', 'LTE', '1', 'COUNT'),
-        ('BASIC', 'AUTH', 'MAX_PROVIDERS', 'NUMERIC', 'LTE', '1', 'COUNT'),
 
         ('PREMIUM', 'COMMENT_SECTION', 'MAX_COMMENTS', 'NUMERIC', 'LTE', '1000', 'COUNT'),
-        ('PREMIUM', 'AUTH', 'MAX_AUTH_TYPES', 'NUMERIC', 'LTE', '2', 'COUNT'),
-        ('PREMIUM', 'AUTH', 'MAX_PROVIDERS', 'NUMERIC', 'LTE', '3', 'COUNT'),
 
         ('ADVANCED', 'COMMENT_SECTION', 'MAX_COMMENTS', 'NUMERIC', 'LTE', '5000', 'COUNT'),
-        ('ADVANCED', 'AUTH', 'MAX_AUTH_TYPES', 'NUMERIC', 'LTE', '3', 'COUNT'),
-        ('ADVANCED', 'AUTH', 'MAX_PROVIDERS', 'NUMERIC', 'LTE', '10', 'COUNT'),
         ('ADVANCED', 'AI_SUBJECT_SUMMARY', 'MAX_AI_SUMMARIES_PER_DAY', 'NUMERIC', 'LTE', '500', 'COUNT')
 ),
 resolved_restrictions AS (

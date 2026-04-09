@@ -1,0 +1,34 @@
+package com.ims.bff.registration.transform;
+
+import java.util.List;
+
+import org.springframework.stereotype.Component;
+
+import com.ims.bff.common.transform.TypedTransformationStrategy;
+import com.ims.bff.registration.context.RegistrationExecutionContext;
+import com.ims.bff.registration.entity.OrganizationFeatureSelectionEntity;
+import com.ims.bff.registration.enums.RegistrationStepType;
+
+@Component
+public class OrganizationFeatureSelectionTransformationStrategy implements
+        TypedTransformationStrategy<RegistrationStepType, List<OrganizationFeatureSelectionEntity>, RegistrationExecutionContext> {
+
+    @Override
+    public RegistrationStepType supports() {
+        return RegistrationStepType.ORGANIZATION_FEATURE_SELECTION;
+    }
+
+    @Override
+    public List<OrganizationFeatureSelectionEntity> transform(RegistrationExecutionContext context) {
+        return context.getRequest().featureIds().stream()
+                .distinct()
+                .map(featureId -> {
+                    OrganizationFeatureSelectionEntity selection = new OrganizationFeatureSelectionEntity();
+                    selection.setOrganization(context.getOrganization());
+                    selection.setFeatureId(featureId);
+                    selection.setStatus("ACTIVE");
+                    return selection;
+                })
+                .toList();
+    }
+}

@@ -2,7 +2,7 @@ Project ims_subscription_model {
   database_type: "PostgreSQL"
   Note: '''
 Hybrid design:
-1. PostgreSQL stores organization, subscription, plan, feature catalog, plan entitlements, feature restrictions, and organization feature selections.
+1. PostgreSQL stores organization, subscription, plan, feature catalog, plan entitlements, plan-driven selection rules, feature restrictions, and organization feature selections.
 2. MongoDB stores feature adjacency graph only.
 
 Feature catalog examples:
@@ -20,13 +20,19 @@ Feature catalog examples:
 MongoDB adjacency examples:
 - 1 -> [2,3,4,5,7]
 - 2 -> [6]
-- 8 -> [9]
-- 9 -> [10]
+- 8 -> [9,11,12]
+- 9 -> [10,13,14]
+- 11 -> [15]
+
+Selection rule examples:
+- BASIC + AUTH => select exactly 1 direct child auth type
+- BASIC + AUTH_TYPE_OAUTH => select exactly 1 direct child provider
+- PREMIUM + AUTH => select 1 to 2 direct child auth types
+- ADVANCED + AUTH => select 1 to 3 direct child auth types
 
 Restriction examples:
 - BASIC + COMMENT_SECTION => MAX_COMMENTS LTE 200 COUNT
-- BASIC + AUTH => MAX_AUTH_TYPES LTE 1 COUNT
-- BASIC + AUTH_TYPE_OAUTH => MAX_PROVIDERS LTE 1 COUNT
+- ADVANCED + AI_SUBJECT_SUMMARY => MAX_AI_SUMMARIES_PER_DAY LTE 500 COUNT
 '''
 }
 
@@ -90,6 +96,15 @@ Enum restriction_unit {
   PERCENT
 }
 
+Enum selection_scope {
+  DIRECT_CHILDREN
+}
+
+Enum feature_grant_type {
+  DIRECT
+  SELECTABLE
+}
+
 Table organization {
   organization_id bigint [pk, increment]
   organization_code varchar(64) [not null, unique, note: "Stable business key, e.g. ORG_ABC123"]
@@ -139,7 +154,8 @@ Table plan {
 Table plan_feature {
   plan_feature_id bigint [pk, increment]
   plan_id bigint [not null]
-  feature_id bigint [not null]
+  feature_id bigint [not null, note: "Feature granted at the plan level. DIRECT means auto-granted. SELECTABLE means the org must choose descendants/config under this feature."]
+  grant_type feature_grant_type [not null, default: 'DIRECT', note: "DIRECT = auto-granted by plan. SELECTABLE = org must choose within this granted feature family."]
   created_at timestamp [not null]
 
   indexes {
@@ -147,10 +163,26 @@ Table plan_feature {
   }
 }
 
+Table plan_feature_selection_rule {
+  plan_feature_selection_rule_id bigint [pk, increment]
+  plan_feature_id bigint [not null]
+  applies_to_feature_id bigint [not null, note: "Node whose direct children can be selected. Can be the entitlement anchor or a descendant node inside the granted subtree."]
+  selection_scope selection_scope [not null, default: 'DIRECT_CHILDREN']
+  min_selectable int [not null, default: 0]
+  max_selectable int [not null]
+  selection_required boolean [not null, default: false]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    (plan_feature_id, applies_to_feature_id, selection_scope) [unique]
+  }
+}
+
 Table plan_feature_restriction {
   plan_feature_restriction_id bigint [pk, increment]
   plan_feature_id bigint [not null]
-  restriction_key varchar(80) [not null, note: "Examples: MAX_COMMENTS, VIEW_ACCESS, MAX_AUTH_TYPES, MAX_PROVIDERS"]
+  restriction_key varchar(80) [not null, note: "Examples: MAX_COMMENTS, VIEW_ACCESS, MAX_AI_SUMMARIES_PER_DAY"]
   restriction_type restriction_type [not null]
   operator restriction_operator [not null]
   restriction_value varchar(255) [not null, note: "Stored as text so boolean, numeric, and text restrictions share one model"]
@@ -233,6 +265,8 @@ Table subscription_coupon {
 Ref: organization_domain.organization_id > organization.organization_id
 Ref: plan_feature.plan_id > plan.plan_id
 Ref: plan_feature.feature_id > feature.feature_id
+Ref: plan_feature_selection_rule.plan_feature_id > plan_feature.plan_feature_id
+Ref: plan_feature_selection_rule.applies_to_feature_id > feature.feature_id
 Ref: plan_feature_restriction.plan_feature_id > plan_feature.plan_feature_id
 Ref: organization_feature_selection.organization_id > organization.organization_id
 Ref: organization_feature_selection.feature_id > feature.feature_id

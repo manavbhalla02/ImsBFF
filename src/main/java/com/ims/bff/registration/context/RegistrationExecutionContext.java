@@ -1,7 +1,10 @@
 package com.ims.bff.registration.context;
 
+import java.util.List;
+
 import com.ims.bff.registration.dto.OrganizationRegistrationRequest;
 import com.ims.bff.registration.entity.OrganizationDomainEntity;
+import com.ims.bff.registration.entity.OrganizationFeatureSelectionEntity;
 import com.ims.bff.registration.entity.OrganizationEntity;
 import com.ims.bff.registration.entity.SubscriptionEntity;
 
@@ -11,6 +14,7 @@ public class RegistrationExecutionContext {
     private OrganizationEntity organization;
     private OrganizationDomainEntity organizationDomain;
     private SubscriptionEntity subscription;
+    private List<OrganizationFeatureSelectionEntity> organizationFeatureSelections;
 
     public RegistrationExecutionContext(OrganizationRegistrationRequest request) {
         this.request = request;
@@ -42,5 +46,13 @@ public class RegistrationExecutionContext {
 
     public void setSubscription(SubscriptionEntity subscription) {
         this.subscription = subscription;
+    }
+
+    public List<OrganizationFeatureSelectionEntity> getOrganizationFeatureSelections() {
+        return organizationFeatureSelections;
+    }
+
+    public void setOrganizationFeatureSelections(List<OrganizationFeatureSelectionEntity> organizationFeatureSelections) {
+        this.organizationFeatureSelections = organizationFeatureSelections;
     }
 }

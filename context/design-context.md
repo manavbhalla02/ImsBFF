@@ -56,8 +56,14 @@ This file captures the design preferences and decisions established during the s
   - `COMMENT_RES`
   - `AI_SUBJECT_SUMMARY`
   - `AUTH`
+  - `AUTH_TYPE_BASIC`
   - `AUTH_TYPE_OAUTH`
+  - `AUTH_TYPE_SSO`
+  - `AUTH_PROVIDER_BASIC`
   - `AUTH_PROVIDER_GOOGLE`
+  - `AUTH_PROVIDER_GITHUB`
+  - `AUTH_PROVIDER_LINKEDIN`
+  - `AUTH_PROVIDER_OKTA`
 - Feature graph/adjacency should be stored separately in MongoDB.
 - The current preferred split is:
   - PostgreSQL for business truth, entitlements, restrictions, and selections
@@ -69,8 +75,10 @@ This file captures the design preferences and decisions established during the s
 - Example adjacency discussed:
   - `1 -> [2,3,4,5,7]`
   - `2 -> [6]`
-  - `8 -> [9]`
-  - `9 -> [10]`
+  - `AUTH -> [AUTH_TYPE_BASIC, AUTH_TYPE_OAUTH, AUTH_TYPE_SSO]`
+  - `AUTH_TYPE_BASIC -> [AUTH_PROVIDER_BASIC]`
+  - `AUTH_TYPE_OAUTH -> [AUTH_PROVIDER_GOOGLE, AUTH_PROVIDER_GITHUB, AUTH_PROVIDER_LINKEDIN]`
+  - `AUTH_TYPE_SSO -> [AUTH_PROVIDER_OKTA]`
 - RDBMS and MongoDB should be connected conceptually by `feature_id` or stable `feature_key`.
 
 ## Plan and Feature Entitlement Preferences
@@ -79,18 +87,26 @@ This file captures the design preferences and decisions established during the s
   - `BASIC`
   - `PREMIUM`
   - `ADVANCED`
-- `plan_feature` represents what a plan permits.
-- A feature being allowed by a plan is different from an organization actually selecting it.
+- `plan_feature` stores plan-level grants and now distinguishes between:
+  - `DIRECT` = automatically granted by the plan
+  - `SELECTABLE` = granted as a selectable feature family/configuration area
+- A feature being granted by a plan is different from an organization actually selecting concrete child nodes under that feature family.
+- Example:
+  - plan may grant `AUTH` as `SELECTABLE`
+  - plan may grant `COMMENT_SECTION` or `DESCRIPTION` as `DIRECT`
+  - actual chosen auth type/provider is stored separately
 
 ## Auth as Feature Preference
 
 - Authentication is treated as a feature family.
 - Auth choices are not just subscription metadata; they are feature selections.
 - Basic plan rule:
-  - only one auth type
-  - only one provider
-- Higher plans may allow multiple auth types and multiple providers.
+  - user can select any one auth type
+  - then any one provider under the selected auth type
+- Premium and Advanced allow selecting more auth types/providers through plan-driven selection rules.
 - Auth restrictions should be enforced in business logic, not hardcoded as DB constraints.
+- `AUTH` is the root feature family.
+- Auth types and providers are resolved through the feature graph, not explicitly whitelisted in every `plan_feature` row.
 
 ## Restriction Design Preference
 
@@ -106,9 +122,30 @@ This file captures the design preferences and decisions established during the s
   - unit
 - Restriction examples discussed:
   - `MAX_COMMENTS LTE 200 COUNT`
-  - `MAX_AUTH_TYPES LTE 1 COUNT`
-  - `MAX_PROVIDERS LTE 1 COUNT`
 - Usage tracking should be separate from restriction definition.
+
+## Selection Rule Preference
+
+- The problem is better modeled as a tree with node-level selection policy and per-plan override.
+- MongoDB stores tree/adjacency only.
+- PostgreSQL stores the entitlement anchor and selection rules.
+- Preferred rule model:
+  - direct children only
+  - `min_selectable`
+  - `max_selectable`
+  - plan overrides node behavior
+- A separate table is preferred for this rather than adding many fields to `plan_feature`.
+- Current chosen shape:
+  - `plan_feature` = plan-level grant with `grant_type`
+  - `plan_feature_selection_rule` = selection behavior for a node in the granted subtree
+  - `organization_feature_selection` = actual chosen nodes
+
+Auth example under this model:
+- `BASIC` grants `AUTH` as `SELECTABLE`
+- `BASIC` grants `COMMENT_SECTION`, `SUBJECT`, and `DESCRIPTION` as `DIRECT`
+- selection rule on `AUTH` allows selecting exactly one auth type from direct children
+- selection rule on chosen auth type allows selecting exactly one provider from direct children
+- same pattern should work for any future feature family, not just auth
 
 ## Organization Feature Selection
 
@@ -118,6 +155,7 @@ This file captures the design preferences and decisions established during the s
 - This table exists to distinguish:
   - what a plan allows
   - what an organization actually enables/selects
+- This remains valid even after refining `plan_feature` because subscription still represents purchase/lifecycle, not actual chosen configuration.
 
 ## Current Schema Artifacts
 
@@ -136,6 +174,7 @@ This file captures the design preferences and decisions established during the s
   - feature
   - plan
   - plan_feature
+  - plan_feature_selection_rule
   - plan_feature_restriction
   - organization_feature_selection
   - subscription

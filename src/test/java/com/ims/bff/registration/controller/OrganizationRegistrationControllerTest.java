@@ -29,7 +29,8 @@ class OrganizationRegistrationControllerTest {
                                   "orgName": "Acme Corp",
                                   "domainName": "acme.com",
                                   "subscriptionPlanId": 1,
-                                  "autoRenew": true
+                                  "autoRenew": true,
+                                  "featureIds": [9, 10]
                                 }
                                 """))
                 .andExpect(status().isCreated())
@@ -46,7 +47,8 @@ class OrganizationRegistrationControllerTest {
                   "orgName": "Acme Corp",
                   "domainName": "duplicate.com",
                   "subscriptionPlanId": 1,
-                  "autoRenew": true
+                  "autoRenew": true,
+                  "featureIds": [9, 10]
                 }
                 """;
 
@@ -64,10 +66,27 @@ class OrganizationRegistrationControllerTest {
                                   "orgName": "Another Corp",
                                   "domainName": "duplicate.com",
                                   "subscriptionPlanId": 2,
-                                  "autoRenew": false
+                                  "autoRenew": false,
+                                  "featureIds": [9, 10]
                                 }
                                 """))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value("Domain is already registered: duplicate.com"));
+    }
+
+    @Test
+    void shouldRejectRegistrationWhenFeatureIdsAreMissing() throws Exception {
+        mockMvc.perform(post("/api/v1/registrations/organizations")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "orgName": "Acme Corp",
+                                  "domainName": "acme-missing-features.com",
+                                  "subscriptionPlanId": 1,
+                                  "autoRenew": true
+                                }
+                                """))
+                .andExpect(status().isBadRequest());
     }
 }
