@@ -12,6 +12,7 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.security.web.SecurityFilterChain;
 
 import com.ims.bff.auth.AuthConstants;
+import com.ims.bff.plan.PlanConstants;
 import com.ims.bff.auth.handler.OAuth2AuthenticationSuccessHandler;
 import com.ims.bff.registration.RegistrationConstants;
 
@@ -30,6 +31,7 @@ public class SecurityConfiguration {
                         .requestMatchers("/", "/index.html", "/static/**", "/favicon.ico", "/error").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(HttpMethod.GET, AuthConstants.AUTH_PROVIDERS_PATH).permitAll()
+                        .requestMatchers(HttpMethod.GET, PlanConstants.PLAN_API_BASE_PATH).permitAll()
                         .requestMatchers(HttpMethod.POST, AuthConstants.AUTH_BASIC_LOGIN_PATH).permitAll()
                         .requestMatchers(HttpMethod.GET, AuthConstants.AUTH_API_BASE_PATH + "/login/**").permitAll()
                         .requestMatchers(HttpMethod.GET, AuthConstants.AUTH_USER_PATH).permitAll() // Temporary for debugging
