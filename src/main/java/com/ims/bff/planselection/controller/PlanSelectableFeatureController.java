@@ -1,0 +1,27 @@
+package com.ims.bff.planselection.controller;
+
+import static com.ims.bff.planselection.PlanSelectionConstants.PLAN_SELECTION_API_BASE_PATH;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.ims.bff.planselection.dto.SelectablePlanFeaturesResponse;
+import com.ims.bff.planselection.service.PlanSelectableFeatureApplicationService;
+
+@RestController
+@RequestMapping(PLAN_SELECTION_API_BASE_PATH)
+public class PlanSelectableFeatureController {
+
+    private final PlanSelectableFeatureApplicationService planSelectableFeatureApplicationService;
+
+    public PlanSelectableFeatureController(PlanSelectableFeatureApplicationService planSelectableFeatureApplicationService) {
+        this.planSelectableFeatureApplicationService = planSelectableFeatureApplicationService;
+    }
+
+    @GetMapping("/{planId}/selectable-features")
+    public SelectablePlanFeaturesResponse getSelectableFeatures(@PathVariable Long planId) {
+        return planSelectableFeatureApplicationService.getSelectableFeatures(planId);
+    }
+}
