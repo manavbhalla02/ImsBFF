@@ -22,7 +22,7 @@ public class PlanApplicationService {
                 .map(plan -> new SubscriptionPlanResponse(
                         plan.getPlanId(),
                         plan.getPlanName(),
-                        plan.getBillingPeriod(),
+                        plan.getBillingPeriod().name(),
                         plan.getBasePrice()))
                 .toList();
         return new SubscriptionPlansResponse(plans);

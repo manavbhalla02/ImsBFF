@@ -2,8 +2,12 @@ package com.ims.bff.registration.entity;
 
 import java.time.Instant;
 
+import com.ims.bff.registration.enums.OrganizationFeatureSelectionStatus;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -12,6 +16,8 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "organization_feature_selection")
@@ -19,7 +25,8 @@ public class OrganizationFeatureSelectionEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "organization_feature_selection_id")
+    private Long organizationFeatureSelectionId;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "organization_id", nullable = false)
@@ -28,14 +35,16 @@ public class OrganizationFeatureSelectionEntity {
     @Column(name = "feature_id", nullable = false)
     private Long featureId;
 
-    @Column(name = "status", nullable = false)
-    private String status;
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, columnDefinition = "organization_feature_selection_status")
+    private OrganizationFeatureSelectionStatus status;
 
     @Column(name = "selected_at", nullable = false, updatable = false)
     private Instant selectedAt;
 
-    public Long getId() {
-        return id;
+    public Long getOrganizationFeatureSelectionId() {
+        return organizationFeatureSelectionId;
     }
 
     public OrganizationEntity getOrganization() {
@@ -54,11 +63,11 @@ public class OrganizationFeatureSelectionEntity {
         this.featureId = featureId;
     }
 
-    public String getStatus() {
+    public OrganizationFeatureSelectionStatus getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(OrganizationFeatureSelectionStatus status) {
         this.status = status;
     }
 

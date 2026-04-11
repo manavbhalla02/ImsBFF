@@ -2,8 +2,12 @@ package com.ims.bff.planselection.entity;
 
 import java.time.Instant;
 
+import com.ims.bff.planselection.enums.SelectionScope;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -26,8 +30,9 @@ public class PlanFeatureSelectionRuleEntity {
     @Column(name = "applies_to_feature_id", nullable = false)
     private Long appliesToFeatureId;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "selection_scope", nullable = false)
-    private String selectionScope;
+    private SelectionScope selectionScope;
 
     @Column(name = "min_selectable", nullable = false)
     private Integer minSelectable;
@@ -64,11 +69,11 @@ public class PlanFeatureSelectionRuleEntity {
         this.appliesToFeatureId = appliesToFeatureId;
     }
 
-    public String getSelectionScope() {
+    public SelectionScope getSelectionScope() {
         return selectionScope;
     }
 
-    public void setSelectionScope(String selectionScope) {
+    public void setSelectionScope(SelectionScope selectionScope) {
         this.selectionScope = selectionScope;
     }
 

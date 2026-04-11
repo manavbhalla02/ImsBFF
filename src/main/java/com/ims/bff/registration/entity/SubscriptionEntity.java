@@ -2,8 +2,12 @@ package com.ims.bff.registration.entity;
 
 import java.time.Instant;
 
+import com.ims.bff.registration.enums.SubscriptionStatus;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -12,6 +16,8 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "subscription")
@@ -19,7 +25,8 @@ public class SubscriptionEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "subscription_id")
+    private Long subscriptionId;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "organization_id", nullable = false)
@@ -31,14 +38,22 @@ public class SubscriptionEntity {
     @Column(name = "auto_renew", nullable = false)
     private boolean autoRenew;
 
-    @Column(name = "status", nullable = false)
-    private String status;
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, columnDefinition = "subscription_status")
+    private SubscriptionStatus status;
+
+    @Column(name = "start_at", nullable = false)
+    private Instant startAt;
+
+    @Column(name = "end_at")
+    private Instant endAt;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
-    public Long getId() {
-        return id;
+    public Long getSubscriptionId() {
+        return subscriptionId;
     }
 
     public OrganizationEntity getOrganization() {
@@ -65,12 +80,28 @@ public class SubscriptionEntity {
         this.autoRenew = autoRenew;
     }
 
-    public String getStatus() {
+    public SubscriptionStatus getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(SubscriptionStatus status) {
         this.status = status;
+    }
+
+    public Instant getStartAt() {
+        return startAt;
+    }
+
+    public void setStartAt(Instant startAt) {
+        this.startAt = startAt;
+    }
+
+    public Instant getEndAt() {
+        return endAt;
+    }
+
+    public void setEndAt(Instant endAt) {
+        this.endAt = endAt;
     }
 
     public Instant getCreatedAt() {

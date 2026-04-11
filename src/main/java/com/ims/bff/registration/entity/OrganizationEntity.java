@@ -16,16 +16,21 @@ public class OrganizationEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "organization_id")
+    private Long organizationId;
 
-    @Column(name = "org_name", nullable = false)
+    @Column(name = "organization_name", nullable = false)
     private String orgName;
+
+    @Column(name="organization_code", nullable = false)
+    private String orgCode;
+
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
-    public Long getId() {
-        return id;
+    public Long getOrganizationId() {
+        return organizationId;
     }
 
     public String getOrgName() {
@@ -34,6 +39,15 @@ public class OrganizationEntity {
 
     public void setOrgName(String orgName) {
         this.orgName = orgName;
+    }
+
+
+    public String getOrgCode() {
+        return orgCode;
+    }
+
+    public void setOrgCode(String orgCode) {
+        this.orgCode = orgCode;
     }
 
     public Instant getCreatedAt() {

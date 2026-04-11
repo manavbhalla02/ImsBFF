@@ -29,9 +29,9 @@ public class OrganizationRegistrationApplicationService {
                 .forEach(step -> executorFactory.getExecutor(step).execute(context));
 
         return new OrganizationRegistrationResponse(
-                context.getOrganization().getId(),
-                context.getOrganizationDomain().getId(),
-                context.getSubscription().getId(),
+                context.getOrganization().getOrganizationId(),
+                context.getOrganizationDomain().getOrganizationDomainId(),
+                context.getSubscription().getSubscriptionId(),
                 "Organization registration completed successfully");
     }
 }

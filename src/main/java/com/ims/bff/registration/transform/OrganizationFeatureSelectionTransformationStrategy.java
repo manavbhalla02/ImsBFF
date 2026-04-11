@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 import com.ims.bff.common.transform.TypedTransformationStrategy;
 import com.ims.bff.registration.context.RegistrationExecutionContext;
 import com.ims.bff.registration.entity.OrganizationFeatureSelectionEntity;
+import com.ims.bff.registration.enums.OrganizationFeatureSelectionStatus;
 import com.ims.bff.registration.enums.RegistrationStepType;
 
 @Component
@@ -26,7 +27,7 @@ public class OrganizationFeatureSelectionTransformationStrategy implements
                     OrganizationFeatureSelectionEntity selection = new OrganizationFeatureSelectionEntity();
                     selection.setOrganization(context.getOrganization());
                     selection.setFeatureId(featureId);
-                    selection.setStatus("ACTIVE");
+                    selection.setStatus(OrganizationFeatureSelectionStatus.ACTIVE);
                     return selection;
                 })
                 .toList();

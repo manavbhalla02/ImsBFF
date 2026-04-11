@@ -1,11 +1,14 @@
 package com.ims.bff.registration.transform;
 
+import java.time.Instant;
+
 import org.springframework.stereotype.Component;
 
 import com.ims.bff.common.transform.TypedTransformationStrategy;
 import com.ims.bff.registration.context.RegistrationExecutionContext;
 import com.ims.bff.registration.entity.SubscriptionEntity;
 import com.ims.bff.registration.enums.RegistrationStepType;
+import com.ims.bff.registration.enums.SubscriptionStatus;
 
 @Component
 public class SubscriptionTransformationStrategy implements
@@ -22,7 +25,8 @@ public class SubscriptionTransformationStrategy implements
         subscription.setOrganization(context.getOrganization());
         subscription.setPlanId(context.getRequest().subscriptionPlanId());
         subscription.setAutoRenew(context.getRequest().autoRenew());
-        subscription.setStatus("ACTIVE");
+        subscription.setStatus(SubscriptionStatus.ACTIVE);
+        subscription.setStartAt(Instant.now());
         return subscription;
     }
 }

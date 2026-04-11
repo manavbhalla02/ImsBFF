@@ -19,7 +19,8 @@ public class OrganizationDomainEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "organization_domain_id")
+    private Long organizationDomainId;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "organization_id", nullable = false)
@@ -31,8 +32,8 @@ public class OrganizationDomainEntity {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
-    public Long getId() {
-        return id;
+    public Long getOrganizationDomainId() {
+        return organizationDomainId;
     }
 
     public OrganizationEntity getOrganization() {

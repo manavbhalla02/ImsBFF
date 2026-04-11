@@ -3,8 +3,12 @@ package com.ims.bff.plan.entity;
 import java.math.BigDecimal;
 import java.time.Instant;
 
+import com.ims.bff.plan.enums.BillingPeriod;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -23,8 +27,9 @@ public class PlanEntity {
     @Column(name = "plan_name", nullable = false)
     private String planName;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "billing_period", nullable = false)
-    private String billingPeriod;
+    private BillingPeriod billingPeriod;
 
     @Column(name = "base_price", nullable = false)
     private BigDecimal basePrice;
@@ -44,11 +49,11 @@ public class PlanEntity {
         this.planName = planName;
     }
 
-    public String getBillingPeriod() {
+    public BillingPeriod getBillingPeriod() {
         return billingPeriod;
     }
 
-    public void setBillingPeriod(String billingPeriod) {
+    public void setBillingPeriod(BillingPeriod billingPeriod) {
         this.billingPeriod = billingPeriod;
     }
 

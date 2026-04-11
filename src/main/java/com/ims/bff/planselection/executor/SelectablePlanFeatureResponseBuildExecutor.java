@@ -55,7 +55,7 @@ public class SelectablePlanFeatureResponseBuildExecutor implements
                 feature.getFeatureId(),
                 feature.getFeatureKey(),
                 feature.getFeatureName(),
-                rule != null ? rule.getSelectionScope() : null,
+                rule != null ? rule.getSelectionScope().name() : null,
                 rule != null ? rule.getMinSelectable() : null,
                 rule != null ? rule.getMaxSelectable() : null,
                 rule != null ? rule.isSelectionRequired() : null,
