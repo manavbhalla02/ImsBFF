@@ -12,10 +12,10 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.security.web.SecurityFilterChain;
 
 import com.ims.bff.auth.AuthConstants;
-import com.ims.bff.orgregistration.plan.PlanConstants;
-import com.ims.bff.orgregistration.planselection.PlanSelectionConstants;
+import com.ims.bff.plan.PlanConstants;
+import com.ims.bff.planselection.PlanSelectionConstants;
 import com.ims.bff.auth.handler.OAuth2AuthenticationSuccessHandler;
-import com.ims.bff.orgregistration.registration.RegistrationConstants;
+import com.ims.bff.registration.RegistrationConstants;
 
 @Configuration
 public class SecurityConfiguration {
