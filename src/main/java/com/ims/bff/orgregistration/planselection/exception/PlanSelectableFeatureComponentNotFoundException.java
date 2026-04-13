@@ -1,0 +1,10 @@
+package com.ims.bff.orgregistration.planselection.exception;
+
+import com.ims.bff.orgregistration.planselection.enums.PlanSelectableFeatureStepType;
+
+public class PlanSelectableFeatureComponentNotFoundException extends RuntimeException {
+
+    public PlanSelectableFeatureComponentNotFoundException(String componentType, PlanSelectableFeatureStepType stepType) {
+        super(componentType + " not found for step type: " + stepType);
+    }
+}
