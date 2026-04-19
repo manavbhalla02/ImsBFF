@@ -1,0 +1,81 @@
+{
+  "configKey": "IMS_FEATURE_TYPE_CONFIG_V1",
+  "configName": "IMS Feature Type Config",
+  "version": 1,
+  "featureTypes": {
+    "TKT_PAGE": {
+      "type": "PAGE",
+      "displayName": "Ticket Page"
+    },
+    "COMMENT_SECTION": {
+      "type": "SECTION",
+      "displayName": "Comment Section"
+    },
+    "SUBJECT": {
+      "type": "FIELD",
+      "displayName": "Subject"
+    },
+    "DESCRIPTION": {
+      "type": "FIELD",
+      "displayName": "Description"
+    },
+    "AUTO_TKT_RESOLUTION": {
+      "type": "BUTTON",
+      "displayName": "Auto Ticket Resolution"
+    },
+    "COMMENT_RES": {
+      "type": "BUTTON",
+      "displayName": "Comment Response"
+    },
+    "AI_SUBJECT_SUMMARY": {
+      "type": "BUTTON",
+      "displayName": "AI Subject Summary"
+    },
+    "AUTH": {
+      "type": "PAGE",
+      "displayName": "Authentication"
+    },
+    "AUTH_TYPE_BASIC": {
+      "type": "CARD",
+      "displayName": "Basic Authentication"
+    },
+    "AUTH_TYPE_OAUTH": {
+      "type": "CARD",
+      "displayName": "OAuth Authentication"
+    },
+    "AUTH_TYPE_SSO": {
+      "type": "CARD",
+      "displayName": "SSO Authentication"
+    },
+    "AUTH_PROVIDER_BASIC": {
+      "type": "BUTTON",
+      "displayName": "Basic Provider"
+    },
+    "AUTH_PROVIDER_GOOGLE": {
+      "type": "BUTTON",
+      "displayName": "Google"
+    },
+    "AUTH_PROVIDER_GITHUB": {
+      "type": "BUTTON",
+      "displayName": "GitHub"
+    },
+    "AUTH_PROVIDER_LINKEDIN": {
+      "type": "BUTTON",
+      "displayName": "LinkedIn"
+    },
+    "AUTH_PROVIDER_OKTA": {
+      "type": "BUTTON",
+      "displayName": "Okta"
+    }
+  },
+  "metadata": {
+    "storageModel": "Config",
+    "configSource": "src/main/resources/configs/feature-type-config.json",
+    "notes": [
+      "This file defines backend-vended feature presentation/type metadata only.",
+      "Hierarchy remains in feature-graph.json.",
+      "Entitlements, selection rules, and restrictions remain in PostgreSQL.",
+      "Type values are intentionally UI-oriented, such as PAGE, SECTION, FIELD, BUTTON, CARD, or MODAL."
+    ]
+  }
+}
