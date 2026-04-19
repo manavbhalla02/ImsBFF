@@ -4,6 +4,7 @@ Project ims_subscription_model {
 Hybrid design:
 1. PostgreSQL stores organization, subscription, plan, feature catalog, plan entitlements, plan-driven selection rules, feature restrictions, and organization feature selections.
 2. MongoDB stores feature adjacency graph only.
+3. Organization-owned employee taxonomy stays table-driven, not enum-driven, so each org can define its own designations, employment types, and employment statuses.
 
 Feature catalog examples:
 - 1 -> TKT_PAGE
@@ -126,6 +127,85 @@ Table organization_domain {
 
   indexes {
     (organization_id, is_primary)
+  }
+}
+
+Table designation {
+  designation_id bigint [pk, increment]
+  organization_id bigint [not null]
+  designation_code varchar(64) [note: "Optional stable key within an organization, e.g. SDE_1, HR_MANAGER"]
+  designation_title varchar(120) [not null]
+  description varchar(500)
+  is_active boolean [not null, default: true]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    (organization_id, designation_title) [unique]
+    (organization_id, designation_code) [unique]
+  }
+}
+
+Table employment_type {
+  employment_type_id bigint [pk, increment]
+  organization_id bigint [not null]
+  type_key varchar(64) [not null, note: "Org-scoped internal key, e.g. FULL_TIME, CONTRACT, INTERN"]
+  type_name varchar(120) [not null]
+  description varchar(500)
+  is_active boolean [not null, default: true]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    (organization_id, type_key) [unique]
+    (organization_id, type_name) [unique]
+  }
+}
+
+Table employment_status {
+  employment_status_id bigint [pk, increment]
+  organization_id bigint [not null]
+  status_key varchar(64) [not null, note: "Org-scoped internal key, e.g. ACTIVE, ON_NOTICE, EXITED"]
+  status_name varchar(120) [not null]
+  description varchar(500)
+  is_active boolean [not null, default: true]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    (organization_id, status_key) [unique]
+    (organization_id, status_name) [unique]
+  }
+}
+
+Table employee {
+  employee_id bigint [pk, increment]
+  organization_id bigint [not null]
+  employee_code varchar(64) [not null, note: "Org-scoped employee identifier / empId"]
+  designation_id bigint [not null]
+  employment_type_id bigint [not null]
+  employment_status_id bigint [not null]
+  manager_employee_id bigint [note: "Self-reference for reporting hierarchy"]
+  first_name varchar(100) [not null]
+  last_name varchar(100)
+  display_name varchar(200)
+  work_email varchar(255) [not null, note: "Primary work email used for company/app identity flows"]
+  personal_email varchar(255)
+  phone_number varchar(32)
+  joining_date date [not null]
+  is_active boolean [not null, default: true]
+  salary decimal(14,2)
+  currency_code char(3) [default: 'USD']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    (organization_id, employee_code) [unique]
+    (organization_id, work_email) [unique]
+    (organization_id, designation_id)
+    (organization_id, employment_type_id)
+    (organization_id, employment_status_id)
+    (organization_id, manager_employee_id)
   }
 }
 
@@ -263,6 +343,14 @@ Table subscription_coupon {
 }
 
 Ref: organization_domain.organization_id > organization.organization_id
+Ref: designation.organization_id > organization.organization_id
+Ref: employment_type.organization_id > organization.organization_id
+Ref: employment_status.organization_id > organization.organization_id
+Ref: employee.organization_id > organization.organization_id
+Ref: employee.designation_id > designation.designation_id
+Ref: employee.employment_type_id > employment_type.employment_type_id
+Ref: employee.employment_status_id > employment_status.employment_status_id
+Ref: employee.manager_employee_id > employee.employee_id
 Ref: plan_feature.plan_id > plan.plan_id
 Ref: plan_feature.feature_id > feature.feature_id
 Ref: plan_feature_selection_rule.plan_feature_id > plan_feature.plan_feature_id
