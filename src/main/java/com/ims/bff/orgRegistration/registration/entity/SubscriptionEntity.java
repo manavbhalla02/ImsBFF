@@ -14,8 +14,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
+import org.hibernate.annotations.ColumnTransformer;
 
 import com.ims.bff.orgRegistration.registration.enums.SubscriptionStatus;
 
@@ -38,8 +37,8 @@ public class SubscriptionEntity {
     @Column(name = "auto_renew", nullable = false)
     private boolean autoRenew;
 
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Enumerated(EnumType.STRING)
+    @ColumnTransformer(write = "cast(? as subscription_status)")
     @Column(name = "status", nullable = false, columnDefinition = "subscription_status")
     private SubscriptionStatus status;
 

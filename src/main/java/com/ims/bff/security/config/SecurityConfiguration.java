@@ -12,6 +12,7 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.security.web.SecurityFilterChain;
 
 import com.ims.bff.auth.AuthConstants;
+import com.ims.bff.authZ.orgDiscovery.AuthZOrgDiscoveryConstants;
 import com.ims.bff.auth.handler.OAuth2AuthenticationSuccessHandler;
 import com.ims.bff.orgRegistration.plan.PlanConstants;
 import com.ims.bff.orgRegistration.planselection.PlanSelectionConstants;
@@ -35,6 +36,7 @@ public class SecurityConfiguration {
                         .requestMatchers(HttpMethod.GET, PlanConstants.PLAN_API_BASE_PATH).permitAll()
                         .requestMatchers(HttpMethod.GET, PlanSelectionConstants.PLAN_SELECTION_API_BASE_PATH + "/**").permitAll()
                         .requestMatchers(HttpMethod.POST, AuthConstants.AUTH_BASIC_LOGIN_PATH).permitAll()
+                        .requestMatchers(HttpMethod.POST, AuthZOrgDiscoveryConstants.ORG_DISCOVERY_API_BASE_PATH + "/**").permitAll()
                         .requestMatchers(HttpMethod.GET, AuthConstants.AUTH_API_BASE_PATH + "/login/**").permitAll()
                         .requestMatchers(HttpMethod.GET, AuthConstants.OAUTH2_AUTHORIZATION_BASE_URI + "/**").permitAll()
                         .requestMatchers(HttpMethod.GET, AuthConstants.AUTH_USER_PATH).permitAll() // Temporary for debugging

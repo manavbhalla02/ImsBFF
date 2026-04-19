@@ -27,7 +27,7 @@ class OrganizationRegistrationControllerTest {
                         .content("""
                                 {
                                   "orgName": "Acme Corp",
-                                  "domainName": "acme.com",
+                                  "domainName": "acme-registration.com",
                                   "subscriptionPlanId": 1,
                                   "autoRenew": true,
                                   "featureIds": [9, 10]

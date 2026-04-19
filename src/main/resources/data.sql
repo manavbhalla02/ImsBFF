@@ -4,6 +4,17 @@ VALUES
     (2, 'Premium', 'MONTHLY', 49.00, CURRENT_TIMESTAMP),
     (3, 'Advanced', 'MONTHLY', 99.00, CURRENT_TIMESTAMP);
 
+INSERT INTO organization (organization_id, organization_name, organization_code, created_at)
+VALUES
+    (1, 'Acme Retail', 'ORG_ACME', CURRENT_TIMESTAMP);
+
+INSERT INTO organization_domain (organization_domain_id, organization_id, domain_name, created_at)
+VALUES
+    (1, 1, 'acme.com', CURRENT_TIMESTAMP);
+
+ALTER TABLE organization ALTER COLUMN organization_id RESTART WITH 100;
+ALTER TABLE organization_domain ALTER COLUMN organization_domain_id RESTART WITH 100;
+
 INSERT INTO feature (feature_id, feature_key, feature_name, description, is_active, created_at, updated_at)
 VALUES
     (1, 'TKT_PAGE', 'Ticket Page', 'Root ticket page capability', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),

@@ -14,8 +14,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
+import org.hibernate.annotations.ColumnTransformer;
 
 import com.ims.bff.orgRegistration.registration.enums.OrganizationFeatureSelectionStatus;
 
@@ -35,8 +34,8 @@ public class OrganizationFeatureSelectionEntity {
     @Column(name = "feature_id", nullable = false)
     private Long featureId;
 
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Enumerated(EnumType.STRING)
+    @ColumnTransformer(write = "cast(? as organization_feature_selection_status)")
     @Column(name = "status", nullable = false, columnDefinition = "organization_feature_selection_status")
     private OrganizationFeatureSelectionStatus status;
 

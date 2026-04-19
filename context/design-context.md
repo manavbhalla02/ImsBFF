@@ -64,14 +64,16 @@ This file captures the design preferences and decisions established during the s
   - `AUTH_PROVIDER_GITHUB`
   - `AUTH_PROVIDER_LINKEDIN`
   - `AUTH_PROVIDER_OKTA`
-- Feature graph/adjacency should be stored separately in MongoDB.
+- Feature graph/adjacency is stored separately in config, not in the relational catalog.
+- Current graph config artifact:
+  - `src/main/resources/configs/feature-graph.json`
 - The current preferred split is:
   - PostgreSQL for business truth, entitlements, restrictions, and selections
-  - MongoDB for feature adjacency graph only
+  - config JSON for feature adjacency graph
 
-## MongoDB Feature Graph Preference
+## Feature Graph Config Preference
 
-- MongoDB is intended for adjacency/hierarchy traversal, not as the primary source of truth for plans or subscriptions.
+- Feature graph config is intended for adjacency/hierarchy traversal, not as the primary source of truth for plans or subscriptions.
 - Example adjacency discussed:
   - `1 -> [2,3,4,5,7]`
   - `2 -> [6]`
@@ -79,7 +81,12 @@ This file captures the design preferences and decisions established during the s
   - `AUTH_TYPE_BASIC -> [AUTH_PROVIDER_BASIC]`
   - `AUTH_TYPE_OAUTH -> [AUTH_PROVIDER_GOOGLE, AUTH_PROVIDER_GITHUB, AUTH_PROVIDER_LINKEDIN]`
   - `AUTH_TYPE_SSO -> [AUTH_PROVIDER_OKTA]`
-- RDBMS and MongoDB should be connected conceptually by `feature_id` or stable `feature_key`.
+- RDBMS and graph config should be connected conceptually by stable `feature_key`.
+- Separate feature-type config also exists:
+  - `src/main/resources/configs/feature-type-config.json`
+- Feature hierarchy and feature UI type must remain separate concerns:
+  - `feature-graph.json` = structure
+  - `feature-type-config.json` = PAGE/BUTTON/CARD/etc metadata
 
 ## Plan and Feature Entitlement Preferences
 
@@ -179,10 +186,96 @@ Auth example under this model:
   - organization_feature_selection
   - subscription
   - coupon-related tables
-- MongoDB stores:
+- Config stores:
   - feature adjacency graph only
+
+## Employee and Org-Owned Taxonomy Direction
+
+- `employee` is a business/person record and should not be conflated with auth identity.
+- Employee auth/account mapping is a separate future concern.
+- Current employee-side schema direction includes:
+  - `designation`
+  - `employment_type`
+  - `employment_status`
+  - `employee`
+- Org-owned taxonomy should remain table-driven and flexible, not Java/DB enum-driven.
+- Important employee field for future app entry workflow:
+  - `work_email`
+
+## Org Discovery / AuthZ Entry Flow
+
+- There is now a separate flow under:
+  - `authZ/orgDiscovery`
+- Current endpoint shape:
+  - `POST /api/v1/authz/org-discovery/otp/send`
+  - `POST /api/v1/authz/org-discovery/otp/verify`
+- Current implementation uses:
+  - state machine pattern
+  - OTP provider factory
+  - email OTP delivery provider
+  - in-memory OTP session store
+- State progression currently is:
+  - `EMAIL_CAPTURED`
+  - `OTP_SENT`
+  - `ORGANIZATION_RESOLVED`
+  - plus failure/expiry states
+- Important response decision:
+  - the `otp/verify` response contract is correct and should be retained
+  - it vends organization details after successful OTP verification
+
+### Important correction for future implementation
+
+- Organization resolution should **not** ultimately be based on `organization_domain`.
+- Desired long-term resolution source:
+  - `employee.work_email` from `employee` table
+- Reason:
+  - app entry should resolve a real employee identity anchor, not only a domain-to-org mapping
+- Current code still uses `organization_domain` as a temporary bridge because employee persistence/model is not yet implemented in the running codebase.
+- This is a temporary implementation shortcut, not the desired final design.
+
+### Discovery workflow preference
+
+- User enters work email first.
+- System sends 6-digit OTP.
+- Frontend sends OTP back.
+- Backend verifies OTP.
+- Backend vends organization details to frontend.
+- The page where the user enters email is a bootstrap/discovery page, not a normal feature-tree page.
+- `AUTH` is the first real feature-driven page after org discovery succeeds.
+
+## Team / Resolver / Permission / LDAP Group Direction
+
+- These are important missing concepts and should not be collapsed into employee or designation.
+- `team`
+  - hierarchical business structure
+  - example: `S Team -> Store -> Returns & Recommerce -> FC Team`
+- `resolver_group`
+  - broad operational responsibility unit
+  - should be defined at industry/work-ownership level, not narrowly as only ticket routing
+- `permission_group`
+  - access bundle / capability grouping
+- `ldap_group`
+  - external directory/integration-facing group
+- Important modeling stance:
+  - designation must not carry permissions
+  - permission groups remain separate from teams and designations
 
 ## Collaboration Preference
 
 - Important design preferences should be captured in-repo so future sessions do not lose context.
 - This file should be updated when major architecture or schema decisions change.
+
+## PostgreSQL Enum Mapping Note
+
+- Some schema columns are native PostgreSQL enum types, for example:
+  - `subscription.status -> subscription_status`
+  - `organization_feature_selection.status -> organization_feature_selection_status`
+- Plain `@Enumerated(EnumType.STRING)` without a cast is not enough for runtime PostgreSQL inserts/updates against those native enum columns.
+- Current preferred JPA mapping approach for these fields is:
+  - keep Java enums
+  - keep `@Enumerated(EnumType.STRING)`
+  - keep the native Postgres column definition
+  - add `@ColumnTransformer(write = "cast(? as <postgres_enum_type>)")`
+- Reason:
+  - this keeps real Postgres runtime compatible
+  - while still allowing H2 tests to run with enum types created in test datasource init
