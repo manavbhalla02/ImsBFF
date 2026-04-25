@@ -260,6 +260,46 @@ Auth example under this model:
   - designation must not carry permissions
   - permission groups remain separate from teams and designations
 
+## Permission Resolution Taxonomy
+
+- `feature_permission`
+  - the atomic app capability/action, such as `VIEW`, `EDIT`, or `APPROVE` for a feature
+- `permission_group`
+  - the reusable internal bundle of `feature_permission` entries
+- `resolver_group`
+  - the reusable internal operational ownership grouping
+- `employee_permission_group`
+  - employee-specific positive grant for internal/manual permission assignment
+- `employee_resolver_group`
+  - employee-specific positive grant for internal/manual resolver assignment
+- `ldap_group_permission_group`
+  - shared mapping from external LDAP groups to internal permission groups
+- `ldap_group_resolver_group`
+  - shared mapping from external LDAP groups to internal resolver groups
+- `employee_permission_group_exclusion`
+  - employee-specific negative exception that suppresses an otherwise effective permission group, mainly for LDAP or Hybrid resolution
+- `employee_resolver_group_exclusion`
+  - employee-specific negative exception that suppresses an otherwise effective resolver group, mainly for LDAP or Hybrid resolution
+- Exclusion lifecycle semantics:
+  - only rows with `status = ACTIVE` participate in effective access resolution
+  - `expires_at` allows time-bounded exceptions without deleting history
+  - `status = INACTIVE` keeps the record for audit/history but stops suppression immediately
+
+## Access Mode Resolution Preference
+
+- `INTERNAL`
+  - effective permission groups come from `employee_permission_group`
+  - effective resolver groups come from `employee_resolver_group`
+- `LDAP`
+  - effective permission groups come from `employee_ldap_identity -> ldap_user_group -> ldap_group_permission_group`
+  - effective resolver groups come from `employee_ldap_identity -> ldap_user_group -> ldap_group_resolver_group`
+- `HYBRID`
+  - effective permission groups are `LDAP-derived UNION manual grants MINUS employee-specific exclusions`
+  - effective resolver groups are `LDAP-derived UNION manual grants MINUS employee-specific exclusions`
+- Exclusion tables exist because LDAP group mappings are shared across many employees:
+  - disabling `ldap_group_permission_group` or `ldap_group_resolver_group` affects everyone in that LDAP group
+  - exclusions allow app-local per-employee suppression without changing the external directory or shared mapping
+
 ## Collaboration Preference
 
 - Important design preferences should be captured in-repo so future sessions do not lose context.

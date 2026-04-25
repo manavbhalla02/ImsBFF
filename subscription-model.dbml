@@ -12,7 +12,7 @@ Hybrid design:
 5. Organization access assignment policy is explicit:
    - INTERNAL => employee_permission_group / employee_resolver_group are primary assignment sources
    - LDAP => ldap_group_permission_group / ldap_group_resolver_group drive effective access through synced directory membership
-   - HYBRID => LDAP is primary, while direct employee assignment can be used as an explicit override path
+   - HYBRID => effective access is LDAP-derived grants UNION manual grants MINUS employee-specific exclusions
 
 Feature catalog examples:
 - 1 -> TKT_PAGE
@@ -79,6 +79,11 @@ Enum organization_feature_selection_status {
   INACTIVE
 }
 
+Enum exclusion_status {
+  ACTIVE
+  INACTIVE
+}
+
 Enum restriction_type {
   BOOLEAN
   NUMERIC
@@ -140,7 +145,7 @@ Table organization {
 Table organization_access_policy {
   organization_access_policy_id bigint [pk, increment]
   organization_id bigint [not null]
-  access_mode organization_access_mode [not null, default: 'INTERNAL', note: "INTERNAL = direct employee assignment. LDAP = directory-derived assignment. HYBRID = LDAP primary with internal override support."]
+  access_mode organization_access_mode [not null, default: 'INTERNAL', note: "INTERNAL = direct employee assignment. LDAP = directory-derived assignment. HYBRID = LDAP-derived grants UNION manual grants MINUS employee-specific exclusions."]
   allow_manual_permission_assignment boolean [not null, default: true, note: "Set false for strict LDAP-only authorization management."]
   allow_manual_resolver_assignment boolean [not null, default: true, note: "Set false for strict LDAP-only operational group assignment."]
   created_at timestamp [not null]
@@ -308,6 +313,23 @@ Table employee_resolver_group {
   }
 }
 
+Table employee_resolver_group_exclusion {
+  employee_resolver_group_exclusion_id bigint [pk, increment]
+  employee_id bigint [not null]
+  resolver_group_id bigint [not null]
+  status exclusion_status [not null, default: 'ACTIVE', note: "Only ACTIVE exclusions participate in effective Hybrid resolution"]
+  reason varchar(255) [note: "Optional app-local reason for suppressing a resolver group derived from LDAP or Hybrid resolution"]
+  expires_at timestamp [note: "Null means exclusion remains active until removed"]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    (employee_id, resolver_group_id) [unique]
+    (employee_id, status)
+    (resolver_group_id)
+  }
+}
+
 Table permission_group {
   permission_group_id bigint [pk, increment]
   organization_id bigint [not null]
@@ -334,6 +356,23 @@ Table employee_permission_group {
 
   indexes {
     (employee_id, permission_group_id) [unique]
+  }
+}
+
+Table employee_permission_group_exclusion {
+  employee_permission_group_exclusion_id bigint [pk, increment]
+  employee_id bigint [not null]
+  permission_group_id bigint [not null]
+  status exclusion_status [not null, default: 'ACTIVE', note: "Only ACTIVE exclusions participate in effective Hybrid resolution"]
+  reason varchar(255) [note: "Optional app-local reason for suppressing a permission group derived from LDAP or Hybrid resolution"]
+  expires_at timestamp [note: "Null means exclusion remains active until removed"]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    (employee_id, permission_group_id) [unique]
+    (employee_id, status)
+    (permission_group_id)
   }
 }
 
@@ -636,10 +675,14 @@ Ref: resolver_group.organization_id > organization.organization_id
 Ref: resolver_group.parent_resolver_group_id > resolver_group.resolver_group_id
 Ref: employee_resolver_group.employee_id > employee.employee_id
 Ref: employee_resolver_group.resolver_group_id > resolver_group.resolver_group_id
+Ref: employee_resolver_group_exclusion.employee_id > employee.employee_id
+Ref: employee_resolver_group_exclusion.resolver_group_id > resolver_group.resolver_group_id
 Ref: permission_group.organization_id > organization.organization_id
 Ref: permission_group.parent_permission_group_id > permission_group.permission_group_id
 Ref: employee_permission_group.employee_id > employee.employee_id
 Ref: employee_permission_group.permission_group_id > permission_group.permission_group_id
+Ref: employee_permission_group_exclusion.employee_id > employee.employee_id
+Ref: employee_permission_group_exclusion.permission_group_id > permission_group.permission_group_id
 Ref: feature_permission.feature_id > feature.feature_id
 Ref: permission_group_feature_permission.permission_group_id > permission_group.permission_group_id
 Ref: permission_group_feature_permission.feature_permission_id > feature_permission.feature_permission_id
