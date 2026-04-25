@@ -33,39 +33,69 @@
     },
     "AUTH": {
       "type": "PAGE",
-      "displayName": "Authentication"
+      "displayName": "Authentication",
+      "organizationWide": true,
+      "defaultActions": ["VIEW"]
     },
     "AUTH_TYPE_BASIC": {
       "type": "CARD",
-      "displayName": "Basic Authentication"
+      "displayName": "Basic Authentication",
+      "defaultActions": ["VIEW"]
     },
     "AUTH_TYPE_OAUTH": {
       "type": "CARD",
-      "displayName": "OAuth Authentication"
+      "displayName": "OAuth Authentication",
+      "defaultActions": ["VIEW"]
     },
     "AUTH_TYPE_SSO": {
       "type": "CARD",
-      "displayName": "SSO Authentication"
+      "displayName": "SSO Authentication",
+      "defaultActions": ["VIEW"]
     },
     "AUTH_PROVIDER_BASIC": {
       "type": "BUTTON",
-      "displayName": "Basic Provider"
+      "displayName": "Basic Provider",
+      "defaultActions": ["CLICK"],
+      "action": {
+        "method": "POST",
+        "url": "/api/v1/auth/login/basic"
+      }
     },
     "AUTH_PROVIDER_GOOGLE": {
       "type": "BUTTON",
-      "displayName": "Google"
+      "displayName": "Google",
+      "defaultActions": ["CLICK"],
+      "action": {
+        "method": "GET",
+        "url": "/api/v1/auth/login/oauth2/google"
+      }
     },
     "AUTH_PROVIDER_GITHUB": {
       "type": "BUTTON",
-      "displayName": "GitHub"
+      "displayName": "GitHub",
+      "defaultActions": ["CLICK"],
+      "action": {
+        "method": "GET",
+        "url": "/api/v1/auth/login/oauth2/github"
+      }
     },
     "AUTH_PROVIDER_LINKEDIN": {
       "type": "BUTTON",
-      "displayName": "LinkedIn"
+      "displayName": "LinkedIn",
+      "defaultActions": ["CLICK"],
+      "action": {
+        "method": "GET",
+        "url": "/api/v1/auth/login/oauth2/linkedin"
+      }
     },
     "AUTH_PROVIDER_OKTA": {
       "type": "BUTTON",
-      "displayName": "Okta"
+      "displayName": "Okta",
+      "defaultActions": ["CLICK"],
+      "action": {
+        "method": "GET",
+        "url": "/api/v1/auth/login/sso/okta"
+      }
     }
   },
   "metadata": {
