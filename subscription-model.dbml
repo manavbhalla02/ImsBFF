@@ -9,6 +9,10 @@ Hybrid design:
    - internal model remains team / resolver_group / permission_group
    - ldap_directory / ldap_group / ldap_user feed and map into that internal model
    - employee_ldap_identity separates internal person linkage from external directory accounts so multi-directory and multi-account scenarios stay possible
+5. Organization access assignment policy is explicit:
+   - INTERNAL => employee_permission_group / employee_resolver_group are primary assignment sources
+   - LDAP => ldap_group_permission_group / ldap_group_resolver_group drive effective access through synced directory membership
+   - HYBRID => LDAP is primary, while direct employee assignment can be used as an explicit override path
 
 Feature catalog examples:
 - 1 -> TKT_PAGE
@@ -118,6 +122,12 @@ Enum ldap_identity_link_type {
   HISTORICAL
 }
 
+Enum organization_access_mode {
+  INTERNAL
+  LDAP
+  HYBRID
+}
+
 Table organization {
   organization_id bigint [pk, increment]
   organization_code varchar(64) [not null, unique, note: "Stable business key, e.g. ORG_ABC123"]
@@ -125,6 +135,20 @@ Table organization {
   status organization_status [not null, default: 'ACTIVE']
   created_at timestamp [not null]
   updated_at timestamp [not null]
+}
+
+Table organization_access_policy {
+  organization_access_policy_id bigint [pk, increment]
+  organization_id bigint [not null]
+  access_mode organization_access_mode [not null, default: 'INTERNAL', note: "INTERNAL = direct employee assignment. LDAP = directory-derived assignment. HYBRID = LDAP primary with internal override support."]
+  allow_manual_permission_assignment boolean [not null, default: true, note: "Set false for strict LDAP-only authorization management."]
+  allow_manual_resolver_assignment boolean [not null, default: true, note: "Set false for strict LDAP-only operational group assignment."]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    (organization_id) [unique]
+  }
 }
 
 Table organization_domain {
@@ -595,6 +619,7 @@ Table subscription_coupon {
 }
 
 Ref: organization_domain.organization_id > organization.organization_id
+Ref: organization_access_policy.organization_id > organization.organization_id
 Ref: designation.organization_id > organization.organization_id
 Ref: employment_type.organization_id > organization.organization_id
 Ref: employment_status.organization_id > organization.organization_id
