@@ -4,7 +4,11 @@ Project ims_subscription_model {
 Hybrid design:
 1. PostgreSQL stores organization, subscription, plan, feature catalog, plan entitlements, plan-driven selection rules, feature restrictions, and organization feature selections.
 2. MongoDB stores feature adjacency graph only.
-3. Organization-owned employee taxonomy stays table-driven, not enum-driven, so each org can define its own designations, employment types, and employment statuses.
+3. Organization-owned employee and access taxonomy stays table-driven, not enum-driven, so each org can define its own designations, employment types, employment statuses, teams, resolver groups, and permission groups.
+4. LDAP is treated as a first-class enterprise integration domain:
+   - internal model remains team / resolver_group / permission_group
+   - ldap_directory / ldap_group / ldap_user feed and map into that internal model
+   - employee_ldap_identity separates internal person linkage from external directory accounts so multi-directory and multi-account scenarios stay possible
 
 Feature catalog examples:
 - 1 -> TKT_PAGE
@@ -104,6 +108,14 @@ Enum selection_scope {
 Enum feature_grant_type {
   DIRECT
   SELECTABLE
+}
+
+Enum ldap_identity_link_type {
+  PRIMARY
+  SECONDARY
+  ADMIN_ACCOUNT
+  SERVICE_ACCOUNT
+  HISTORICAL
 }
 
 Table organization {
@@ -209,6 +221,98 @@ Table employee {
   }
 }
 
+Table team {
+  team_id bigint [pk, increment]
+  organization_id bigint [not null]
+  parent_team_id bigint [note: "Self-reference for hierarchical business structure"]
+  team_code varchar(64) [not null, note: "Org-scoped stable key for business hierarchy nodes"]
+  team_name varchar(120) [not null]
+  description varchar(500)
+  is_active boolean [not null, default: true]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    (organization_id, team_code) [unique]
+    (organization_id, team_name)
+    (organization_id, parent_team_id)
+  }
+}
+
+Table employee_team {
+  employee_team_id bigint [pk, increment]
+  employee_id bigint [not null]
+  team_id bigint [not null]
+  is_primary boolean [not null, default: false]
+  assigned_at timestamp [not null]
+
+  indexes {
+    (employee_id, team_id) [unique]
+    (team_id, is_primary)
+  }
+}
+
+Table resolver_group {
+  resolver_group_id bigint [pk, increment]
+  organization_id bigint [not null]
+  parent_resolver_group_id bigint [note: "Self-reference for hierarchical operational ownership structure"]
+  resolver_group_code varchar(64) [not null, note: "Org-scoped stable key for operational hierarchy nodes"]
+  resolver_group_name varchar(120) [not null]
+  responsibility_scope varchar(255) [note: "Short summary of the work/accountability scope owned by this resolver group"]
+  description varchar(500)
+  is_active boolean [not null, default: true]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    (organization_id, resolver_group_code) [unique]
+    (organization_id, resolver_group_name)
+    (organization_id, parent_resolver_group_id)
+  }
+}
+
+Table employee_resolver_group {
+  employee_resolver_group_id bigint [pk, increment]
+  employee_id bigint [not null]
+  resolver_group_id bigint [not null]
+  is_primary boolean [not null, default: false]
+  assigned_at timestamp [not null]
+
+  indexes {
+    (employee_id, resolver_group_id) [unique]
+    (resolver_group_id, is_primary)
+  }
+}
+
+Table permission_group {
+  permission_group_id bigint [pk, increment]
+  organization_id bigint [not null]
+  parent_permission_group_id bigint [note: "Self-reference for hierarchical access bundle structure"]
+  permission_group_code varchar(64) [not null, note: "Org-scoped stable key for reusable hierarchical access bundles"]
+  permission_group_name varchar(120) [not null, note: "Display name can repeat across different branches but should stay unique within the same parent scope"]
+  description varchar(500)
+  is_active boolean [not null, default: true]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    (organization_id, permission_group_code) [unique]
+    (organization_id, parent_permission_group_id, permission_group_name) [unique]
+    (organization_id, parent_permission_group_id)
+  }
+}
+
+Table employee_permission_group {
+  employee_permission_group_id bigint [pk, increment]
+  employee_id bigint [not null]
+  permission_group_id bigint [not null]
+  assigned_at timestamp [not null]
+
+  indexes {
+    (employee_id, permission_group_id) [unique]
+  }
+}
+
 Table feature {
   feature_id bigint [pk, increment]
   feature_key varchar(80) [not null, unique, note: "Examples: TKT_PAGE, COMMENT_SECTION, AUTH, AUTH_TYPE_OAUTH, AUTH_PROVIDER_GOOGLE"]
@@ -217,6 +321,154 @@ Table feature {
   is_active boolean [not null, default: true]
   created_at timestamp [not null]
   updated_at timestamp [not null]
+}
+
+Table feature_permission {
+  feature_permission_id bigint [pk, increment]
+  feature_id bigint [not null]
+  permission_key varchar(64) [not null, note: "Action key on a feature, e.g. VIEW, EDIT, CONFIGURE, APPROVE, UPLOAD"]
+  permission_name varchar(120) [not null]
+  description varchar(500)
+  is_active boolean [not null, default: true]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    (feature_id, permission_key) [unique]
+  }
+}
+
+Table permission_group_feature_permission {
+  permission_group_feature_permission_id bigint [pk, increment]
+  permission_group_id bigint [not null]
+  feature_permission_id bigint [not null]
+  granted_at timestamp [not null]
+
+  indexes {
+    (permission_group_id, feature_permission_id) [unique]
+  }
+}
+
+Table ldap_directory {
+  ldap_directory_id bigint [pk, increment]
+  organization_id bigint [not null]
+  directory_code varchar(64) [not null, note: "Org-scoped stable key for enterprise directory source"]
+  directory_name varchar(120) [not null]
+  directory_type varchar(64) [not null, note: "Examples: LDAP, ACTIVE_DIRECTORY, AZURE_AD_SYNC"]
+  base_dn varchar(255)
+  server_uri varchar(255)
+  is_active boolean [not null, default: true]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    (organization_id, directory_code) [unique]
+    (organization_id, directory_name) [unique]
+  }
+}
+
+Table ldap_group {
+  ldap_group_id bigint [pk, increment]
+  ldap_directory_id bigint [not null]
+  parent_ldap_group_id bigint [note: "Self-reference for hierarchical enterprise directory groups"]
+  external_group_key varchar(128) [note: "Stable external identifier when available"]
+  group_dn varchar(255) [not null, note: "Distinguished name from directory"]
+  group_name varchar(120) [not null]
+  description varchar(500)
+  is_active boolean [not null, default: true]
+  synced_at timestamp
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    (ldap_directory_id, group_dn) [unique]
+    (ldap_directory_id, external_group_key) [unique]
+    (ldap_directory_id, group_name)
+    (ldap_directory_id, parent_ldap_group_id)
+  }
+}
+
+Table ldap_user {
+  ldap_user_id bigint [pk, increment]
+  ldap_directory_id bigint [not null]
+  external_user_key varchar(128) [note: "Stable external directory identifier when available"]
+  user_dn varchar(255) [not null, note: "Distinguished name from directory"]
+  username varchar(120) [not null]
+  work_email varchar(255)
+  display_name varchar(200)
+  is_active boolean [not null, default: true]
+  synced_at timestamp
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    (ldap_directory_id, user_dn) [unique]
+    (ldap_directory_id, external_user_key) [unique]
+    (ldap_directory_id, username)
+    (ldap_directory_id, work_email)
+  }
+}
+
+Table employee_ldap_identity {
+  employee_ldap_identity_id bigint [pk, increment]
+  employee_id bigint [not null]
+  ldap_user_id bigint [not null]
+  link_type ldap_identity_link_type [not null]
+  is_primary boolean [not null, default: false, note: "One active primary link per employee should be enforced in implementation with a partial unique index if required"]
+  linked_at timestamp [not null]
+  unlinked_at timestamp
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    (employee_id, ldap_user_id) [unique]
+    (ldap_user_id) [unique]
+    (employee_id, is_primary)
+  }
+}
+
+Table ldap_user_group {
+  ldap_user_group_id bigint [pk, increment]
+  ldap_user_id bigint [not null]
+  ldap_group_id bigint [not null]
+  synced_at timestamp [not null]
+
+  indexes {
+    (ldap_user_id, ldap_group_id) [unique]
+  }
+}
+
+Table ldap_group_permission_group {
+  ldap_group_permission_group_id bigint [pk, increment]
+  ldap_group_id bigint [not null]
+  permission_group_id bigint [not null]
+  mapped_at timestamp [not null]
+
+  indexes {
+    (ldap_group_id, permission_group_id) [unique]
+  }
+}
+
+Table ldap_group_team {
+  ldap_group_team_id bigint [pk, increment]
+  ldap_group_id bigint [not null]
+  team_id bigint [not null]
+  mapped_at timestamp [not null]
+
+  indexes {
+    (ldap_group_id, team_id) [unique]
+  }
+}
+
+Table ldap_group_resolver_group {
+  ldap_group_resolver_group_id bigint [pk, increment]
+  ldap_group_id bigint [not null]
+  resolver_group_id bigint [not null]
+  mapped_at timestamp [not null]
+
+  indexes {
+    (ldap_group_id, resolver_group_id) [unique]
+  }
 }
 
 Table plan {
@@ -351,6 +603,35 @@ Ref: employee.designation_id > designation.designation_id
 Ref: employee.employment_type_id > employment_type.employment_type_id
 Ref: employee.employment_status_id > employment_status.employment_status_id
 Ref: employee.manager_employee_id > employee.employee_id
+Ref: team.organization_id > organization.organization_id
+Ref: team.parent_team_id > team.team_id
+Ref: employee_team.employee_id > employee.employee_id
+Ref: employee_team.team_id > team.team_id
+Ref: resolver_group.organization_id > organization.organization_id
+Ref: resolver_group.parent_resolver_group_id > resolver_group.resolver_group_id
+Ref: employee_resolver_group.employee_id > employee.employee_id
+Ref: employee_resolver_group.resolver_group_id > resolver_group.resolver_group_id
+Ref: permission_group.organization_id > organization.organization_id
+Ref: permission_group.parent_permission_group_id > permission_group.permission_group_id
+Ref: employee_permission_group.employee_id > employee.employee_id
+Ref: employee_permission_group.permission_group_id > permission_group.permission_group_id
+Ref: feature_permission.feature_id > feature.feature_id
+Ref: permission_group_feature_permission.permission_group_id > permission_group.permission_group_id
+Ref: permission_group_feature_permission.feature_permission_id > feature_permission.feature_permission_id
+Ref: ldap_directory.organization_id > organization.organization_id
+Ref: ldap_group.ldap_directory_id > ldap_directory.ldap_directory_id
+Ref: ldap_group.parent_ldap_group_id > ldap_group.ldap_group_id
+Ref: ldap_user.ldap_directory_id > ldap_directory.ldap_directory_id
+Ref: employee_ldap_identity.employee_id > employee.employee_id
+Ref: employee_ldap_identity.ldap_user_id > ldap_user.ldap_user_id
+Ref: ldap_user_group.ldap_user_id > ldap_user.ldap_user_id
+Ref: ldap_user_group.ldap_group_id > ldap_group.ldap_group_id
+Ref: ldap_group_permission_group.ldap_group_id > ldap_group.ldap_group_id
+Ref: ldap_group_permission_group.permission_group_id > permission_group.permission_group_id
+Ref: ldap_group_team.ldap_group_id > ldap_group.ldap_group_id
+Ref: ldap_group_team.team_id > team.team_id
+Ref: ldap_group_resolver_group.ldap_group_id > ldap_group.ldap_group_id
+Ref: ldap_group_resolver_group.resolver_group_id > resolver_group.resolver_group_id
 Ref: plan_feature.plan_id > plan.plan_id
 Ref: plan_feature.feature_id > feature.feature_id
 Ref: plan_feature_selection_rule.plan_feature_id > plan_feature.plan_feature_id

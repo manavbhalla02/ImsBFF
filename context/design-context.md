@@ -253,7 +253,7 @@ Auth example under this model:
   - broad operational responsibility unit
   - should be defined at industry/work-ownership level, not narrowly as only ticket routing
 - `permission_group`
-  - access bundle / capability grouping
+  - hierarchical access bundle / capability grouping
 - `ldap_group`
   - external directory/integration-facing group
 - Important modeling stance:
